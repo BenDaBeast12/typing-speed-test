@@ -5,11 +5,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Typing Speed Test</title>
-    <meta name="description" content="Test your typing speed online. Measure your words per minute (WPM), accuracy, and improve your typing skills for free.">
+    <meta name="description" content="Test your typing speed online. Measure your WPM and accuracy for free.">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        .logo {
+            display: block;
+            width: 75px;
+            height: 75px;
+            margin: 0 auto 18px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
+
+        <img src="{{ url_for('static', filename='logo.svg') }}"
+             alt="Typing Speed Test logo"
+             class="logo">
+
         <h1>Typing Speed Test</h1>
         <p class="subtitle">Test your speed. Improve your accuracy.</p>
 
@@ -30,14 +45,12 @@
 
         <div id="text-display" class="text-display"></div>
 
-        <textarea
-            id="typing-input"
-            placeholder="Start typing the text above..."
-            spellcheck="false"
-            autocomplete="off"
-            autocapitalize="off"
-            disabled
-        ></textarea>
+        <textarea id="typing-input"
+                  placeholder="Start typing the text above..."
+                  spellcheck="false"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  disabled></textarea>
 
         <div class="buttons">
             <button id="start-button">Start Test</button>
@@ -74,13 +87,11 @@
         let timeLeft = 60;
         let timer = null;
         let started = false;
-
-        function choosePassage() {
-            return passages[Math.floor(Math.random() * passages.length)];
-        }
+        let testStartTime = 0;
 
         function showPassage() {
             display.innerHTML = "";
+
             passage.split("").forEach(char => {
                 const span = document.createElement("span");
                 span.textContent = char;
@@ -89,6 +100,8 @@
         }
 
         function updateStats() {
+            if (!started) return;
+
             const typed = input.value;
             const spans = display.querySelectorAll("span");
             let correct = 0;
@@ -106,11 +119,10 @@
                 }
             });
 
-            const elapsed = 60 - timeLeft;
-            const minutes = Math.max(elapsed / 60, 1 / 60);
-            const wpm = Math.round((correct / 5) / minutes);
+            const elapsed = Math.max((Date.now() - testStartTime) / 60000, 1 / 60);
+            const wpm = Math.round((correct / 5) / elapsed);
             const accuracy = typed.length
-                ? Math.round((correct / typed.length) * 100)
+                ? Math.round(correct / typed.length * 100)
                 : 100;
 
             wpmDisplay.textContent = wpm;
@@ -124,11 +136,12 @@
         function startTest() {
             clearInterval(timer);
 
-            passage = choosePassage();
+            passage = passages[Math.floor(Math.random() * passages.length)];
             timeLeft = 60;
-            started = false;
+            started = true;
+            testStartTime = Date.now();
 
-            timeDisplay.textContent = timeLeft;
+            timeDisplay.textContent = "60";
             wpmDisplay.textContent = "0";
             accuracyDisplay.textContent = "100%";
             input.value = "";
@@ -140,16 +153,19 @@
             showPassage();
             input.focus();
 
-            started = true;
             timer = setInterval(() => {
-                timeLeft--;
+                timeLeft = Math.max(
+                    0,
+                    60 - Math.floor((Date.now() - testStartTime) / 1000)
+                );
+
                 timeDisplay.textContent = timeLeft;
                 updateStats();
 
                 if (timeLeft <= 0) {
                     finishTest();
                 }
-            }, 1000);
+            }, 200);
         }
 
         function finishTest() {
@@ -166,15 +182,17 @@
                 if (typed[i] === passage[i]) correct++;
             }
 
-            const elapsed = Math.max((60 - timeLeft) / 60, 1 / 60);
-            const finalWpm = Math.round((correct / 5) / elapsed);
-            const finalAccuracy = typed.length
-                ? Math.round((correct / typed.length) * 100)
-                : 100;
+            const elapsed = Math.max(
+                Math.min((Date.now() - testStartTime) / 60000, 1),
+                1 / 60
+            );
 
-            document.getElementById("final-wpm").textContent = finalWpm;
+            document.getElementById("final-wpm").textContent =
+                Math.round((correct / 5) / elapsed);
+
             document.getElementById("final-accuracy").textContent =
-                finalAccuracy + "%";
+                (typed.length ? Math.round(correct / typed.length * 100) : 100) + "%";
+
             document.getElementById("correct-chars").textContent = correct;
 
             results.hidden = false;
@@ -185,13 +203,16 @@
             clearInterval(timer);
             started = false;
             timeLeft = 60;
+
             timeDisplay.textContent = "60";
             wpmDisplay.textContent = "0";
             accuracyDisplay.textContent = "100%";
+
             input.value = "";
             input.disabled = true;
             display.innerHTML = "";
             results.hidden = true;
+
             message.textContent = "Press Start Test when you're ready.";
         }
 
