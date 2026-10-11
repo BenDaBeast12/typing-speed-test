@@ -5,8 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Typing Speed Test</title>
+
     <meta name="description" content="Test your typing speed for free with random words. Measure your WPM and accuracy with customizable test durations.">
+
+    <!-- Google Search Console verification -->
     <meta name="google-site-verification" content="5iMg0IsWd16Ain6f7A1289I_mOG8PaDKDfBjyF7uig4" />
+
+    <!-- Google AdSense account verification -->
+    <meta name="google-adsense-account" content="ca-pub-6355414723132442">
 
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -68,9 +74,11 @@
 <body>
     <div class="container">
 
-        <img src="{{ url_for('static', filename='logo.svg') }}"
-             alt="Typing Speed Test logo"
-             class="logo">
+        <img
+            src="{{ url_for('static', filename='logo.svg') }}"
+            alt="Typing Speed Test logo"
+            class="logo"
+        >
 
         <h1>Typing Speed Test</h1>
         <p class="subtitle">Test your speed. Improve your accuracy.</p>
@@ -91,10 +99,12 @@
                 <span id="time">60</span>
                 <small>Seconds</small>
             </div>
+
             <div class="stat">
                 <span id="wpm">0</span>
                 <small>WPM</small>
             </div>
+
             <div class="stat">
                 <span id="accuracy">100%</span>
                 <small>Accuracy</small>
@@ -103,12 +113,14 @@
 
         <div id="text-display" class="text-display"></div>
 
-        <textarea id="typing-input"
-                  placeholder="Press Start Test to begin typing..."
-                  spellcheck="false"
-                  autocomplete="off"
-                  autocapitalize="off"
-                  disabled></textarea>
+        <textarea
+            id="typing-input"
+            placeholder="Press Start Test to begin typing..."
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            disabled
+        ></textarea>
 
         <div class="buttons">
             <button id="start-button">Start Test</button>
@@ -216,9 +228,9 @@
 
             const typed = input.value;
 
-            // Keep enough random words available for the whole test.
             const expectedLength = words.reduce(
-                (total, span) => total + span.textContent.length + 1, 0
+                (total, span) => total + span.textContent.length + 1,
+                0
             );
 
             if (typed.length > expectedLength - 250) {
@@ -233,7 +245,9 @@
             });
 
             for (let i = 0; i < typed.length; i++) {
-                if (typed[i] === expected[i]) correct++;
+                if (typed[i] === expected[i]) {
+                    correct++;
+                }
             }
 
             typedCharacters = typed.length;
@@ -254,7 +268,6 @@
                     : 100
             ) + "%";
 
-            // Highlight the current word and previous typed words.
             let position = 0;
 
             for (const span of words) {
@@ -264,18 +277,21 @@
 
                 if (typed.length > start) {
                     let hasError = false;
-                    let fullyCorrect = true;
 
-                    for (let j = start; j < Math.min(end, typed.length); j++) {
+                    for (
+                        let j = start;
+                        j < Math.min(end, typed.length);
+                        j++
+                    ) {
                         if (typed[j] !== expected[j]) {
                             hasError = true;
-                            fullyCorrect = false;
+                            break;
                         }
                     }
 
                     if (hasError) {
                         span.classList.add("incorrect");
-                    } else if (fullyCorrect && typed.length >= end) {
+                    } else if (typed.length >= end) {
                         span.classList.add("correct");
                     }
                 }
@@ -295,10 +311,13 @@
             timeLeft = duration;
             startTime = Date.now();
             started = true;
+            correctCharacters = 0;
+            typedCharacters = 0;
 
             timeDisplay.textContent = timeLeft;
             wpmDisplay.textContent = "0";
             accuracyDisplay.textContent = "100%";
+
             input.value = "";
             input.disabled = false;
             results.hidden = true;
@@ -376,6 +395,9 @@
             display.innerHTML = "";
             words = [];
             results.hidden = true;
+
+            correctCharacters = 0;
+            typedCharacters = 0;
 
             message.textContent =
                 "Choose a duration and press Start Test.";
