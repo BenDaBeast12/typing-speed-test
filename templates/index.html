@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Typing Speed Test</title>
     <meta name="description" content="Test your typing speed for free with random words. Measure your WPM and accuracy with customizable test durations.">
+    <meta name="google-site-verification" content="5iMg0IsWd16Ain6f7A1289I_mOG8PaDKDfBjyF7uig4" />
 
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
@@ -143,27 +144,27 @@
             "money price value market business profit growth future " +
             "energy power speed focus effort progress result success " +
             "family friend people person child world country city village " +
-            "bread cheese milk butter rice pasta pizza soup apple juice " +
+            "bread cheese milk butter rice pasta pizza soup juice " +
             "football tennis running cycling swimming fitness health " +
             "science maths physics history language english memory logic " +
             "open close start stop begin finish change choose follow " +
             "random simple easy hard clear clean fresh cool warm cold " +
             "fast smart clever calm brave kind honest careful ready " +
-            "forest desert island beach field path bridge tower castle " +
+            "desert island beach field path bridge tower castle " +
             "train plane bus bicycle engine wheel road journey distance " +
             "robot machine system network data signal digital online " +
             "future present moment second minute hour week month year " +
             "early late today tomorrow yesterday always never often " +
             "above below under between around across forward backward " +
-            "greenhouse notebook backpack pocket jacket shoe shirt " +
+            "notebook backpack pocket jacket shoe shirt " +
             "coffee tea breakfast lunch dinner kitchen plate spoon " +
             "window mirror picture camera photo video image color shape " +
             "circle square triangle line curve angle pattern design " +
-            "metal plastic wood glass paper cotton wool leather " +
+            "metal plastic wood glass cotton wool leather " +
             "winter summer autumn spring season weather temperature " +
             "rabbit tiger horse sheep cow goat bird eagle fish whale " +
             "insect spider butterfly animal nature planet galaxy space " +
-            "rocket satellite astronaut science discovery experiment " +
+            "rocket satellite astronaut discovery experiment " +
             "correct mistake error attempt challenge target record " +
             "typing accuracy speed words letters hands fingers " +
             "focus attention control reaction timing habit improvement"
@@ -184,8 +185,8 @@
         let started = false;
         let startTime = 0;
         let words = [];
-        let typedCharacters = 0;
         let correctCharacters = 0;
+        let typedCharacters = 0;
 
         function randomWord() {
             return wordBank[Math.floor(Math.random() * wordBank.length)];
@@ -204,7 +205,7 @@
             display.appendChild(fragment);
         }
 
-        function generateInitialWords() {
+        function generateWords() {
             display.innerHTML = "";
             words = [];
             addWords(100);
@@ -214,72 +215,76 @@
             if (!started) return;
 
             const typed = input.value;
-            const elapsedMinutes = Math.max(
-                (Date.now() - startTime) / 60000,
-                1 / 60000
+
+            // Keep enough random words available for the whole test.
+            const expectedLength = words.reduce(
+                (total, span) => total + span.textContent.length + 1, 0
             );
 
+            if (typed.length > expectedLength - 250) {
+                addWords(100);
+            }
+
+            const expected = words.map(span => span.textContent).join(" ");
             let correct = 0;
 
             words.forEach(span => {
                 span.classList.remove("current", "correct", "incorrect");
             });
 
-            const expected = words.map(span => span.textContent).join(" ");
-            const typedWords = typed.split(" ");
-
-            // Add more words before the user reaches the end.
-            if (typed.length > expected.length - 200) {
-                addWords(100);
-            }
-
-            const updatedExpected = words.map(span => span.textContent).join(" ");
-
             for (let i = 0; i < typed.length; i++) {
-                if (typed[i] === updatedExpected[i]) {
-                    correct++;
-                }
+                if (typed[i] === expected[i]) correct++;
             }
 
             typedCharacters = typed.length;
             correctCharacters = correct;
 
-            const wpm = Math.round((correct / 5) / elapsedMinutes);
-            const accuracy = typed.length
-                ? Math.round((correct / typed.length) * 100)
-                : 100;
+            const elapsedMinutes = Math.max(
+                (Date.now() - startTime) / 60000,
+                1 / 60000
+            );
 
-            wpmDisplay.textContent = wpm;
-            accuracyDisplay.textContent = accuracy + "%";
+            wpmDisplay.textContent = Math.round(
+                (correct / 5) / elapsedMinutes
+            );
 
-            const typedWordCount = typedWords.length;
-            const spans = words;
+            accuracyDisplay.textContent = (
+                typed.length
+                    ? Math.round(correct / typed.length * 100)
+                    : 100
+            ) + "%";
 
-            let characterPosition = 0;
+            // Highlight the current word and previous typed words.
+            let position = 0;
 
-            for (let i = 0; i < spans.length; i++) {
-                const span = spans[i];
+            for (const span of words) {
                 const word = span.textContent;
-                const wordStart = characterPosition;
-                const wordEnd = wordStart + word.length;
+                const start = position;
+                const end = start + word.length;
 
-                for (let j = wordStart; j < wordEnd; j++) {
-                    if (j < typed.length) {
-                        if (typed[j] === updatedExpected[j]) {
-                            span.classList.add("correct");
-                        } else {
-                            span.classList.add("incorrect");
+                if (typed.length > start) {
+                    let hasError = false;
+                    let fullyCorrect = true;
+
+                    for (let j = start; j < Math.min(end, typed.length); j++) {
+                        if (typed[j] !== expected[j]) {
+                            hasError = true;
+                            fullyCorrect = false;
                         }
-                        break;
+                    }
+
+                    if (hasError) {
+                        span.classList.add("incorrect");
+                    } else if (fullyCorrect && typed.length >= end) {
+                        span.classList.add("correct");
                     }
                 }
 
-                if (typed.length >= wordStart && typed.length <= wordEnd) {
+                if (typed.length >= start && typed.length <= end) {
                     span.classList.add("current");
-                    span.scrollIntoView({ block: "nearest", behavior: "smooth" });
                 }
 
-                characterPosition = wordEnd + 1;
+                position = end + 1;
             }
         }
 
@@ -298,9 +303,11 @@
             input.disabled = false;
             results.hidden = true;
             durationSelect.disabled = true;
-            message.textContent = "Type the random words as quickly and accurately as possible.";
 
-            generateInitialWords();
+            message.textContent =
+                "Type the random words as quickly and accurately as possible.";
+
+            generateWords();
             input.focus();
 
             timer = setInterval(() => {
@@ -324,6 +331,7 @@
             updateStats();
             started = false;
             clearInterval(timer);
+
             input.disabled = true;
             durationSelect.disabled = false;
 
@@ -332,14 +340,19 @@
                 1 / 60000
             );
 
-            const finalWpm = Math.round((correctCharacters / 5) / elapsedMinutes);
+            const finalWpm = Math.round(
+                (correctCharacters / 5) / elapsedMinutes
+            );
+
             const finalAccuracy = typedCharacters
                 ? Math.round(correctCharacters / typedCharacters * 100)
                 : 100;
 
             document.getElementById("final-wpm").textContent = finalWpm;
-            document.getElementById("final-accuracy").textContent = finalAccuracy + "%";
-            document.getElementById("correct-chars").textContent = correctCharacters;
+            document.getElementById("final-accuracy").textContent =
+                finalAccuracy + "%";
+            document.getElementById("correct-chars").textContent =
+                correctCharacters;
 
             results.hidden = false;
             message.textContent = "Test finished.";
@@ -348,6 +361,7 @@
         function resetTest() {
             clearInterval(timer);
             started = false;
+
             duration = Number(durationSelect.value);
             timeLeft = duration;
 
@@ -358,19 +372,26 @@
             input.value = "";
             input.disabled = true;
             durationSelect.disabled = false;
+
             display.innerHTML = "";
             words = [];
             results.hidden = true;
 
-            message.textContent = "Choose a duration and press Start Test.";
+            message.textContent =
+                "Choose a duration and press Start Test.";
         }
 
         durationSelect.addEventListener("change", resetTest);
         input.addEventListener("input", updateStats);
 
-        document.getElementById("start-button").addEventListener("click", startTest);
-        document.getElementById("reset-button").addEventListener("click", resetTest);
-        document.getElementById("try-again-button").addEventListener("click", startTest);
+        document.getElementById("start-button")
+            .addEventListener("click", startTest);
+
+        document.getElementById("reset-button")
+            .addEventListener("click", resetTest);
+
+        document.getElementById("try-again-button")
+            .addEventListener("click", startTest);
 
         resetTest();
     </script>
