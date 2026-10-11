@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Typing Speed Test</title>
-    <meta name="description" content="Test your typing speed online. Measure your WPM and accuracy for free.">
+    <meta name="description" content="Test your typing speed for free with random words. Measure your WPM and accuracy with customizable test durations.">
+
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='logo.svg') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
@@ -16,8 +17,53 @@
             height: 75px;
             margin: 0 auto 18px;
         }
+
+        .duration-control {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .duration-control label {
+            display: block;
+            margin-bottom: 10px;
+            color: #cbd5e1;
+            font-weight: bold;
+        }
+
+        #duration {
+            padding: 10px 14px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            background: #0f172a;
+            color: #f8fafc;
+            font-size: 15px;
+        }
+
+        .text-display {
+            height: 170px;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+        }
+
+        .text-display span {
+            margin-right: 5px;
+        }
+
+        .text-display span.current {
+            border-bottom: 2px solid #38bdf8;
+        }
+
+        .text-display span.correct {
+            color: #4ade80;
+        }
+
+        .text-display span.incorrect {
+            color: #f87171;
+            background: #7f1d1d;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
 
@@ -27,6 +73,17 @@
 
         <h1>Typing Speed Test</h1>
         <p class="subtitle">Test your speed. Improve your accuracy.</p>
+
+        <div class="duration-control">
+            <label for="duration">Test duration</label>
+            <select id="duration">
+                <option value="15">15 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="60" selected>60 seconds</option>
+                <option value="120">2 minutes</option>
+                <option value="300">5 minutes</option>
+            </select>
+        </div>
 
         <div class="stats">
             <div class="stat">
@@ -46,7 +103,7 @@
         <div id="text-display" class="text-display"></div>
 
         <textarea id="typing-input"
-                  placeholder="Start typing the text above..."
+                  placeholder="Press Start Test to begin typing..."
                   spellcheck="false"
                   autocomplete="off"
                   autocapitalize="off"
@@ -57,7 +114,7 @@
             <button id="reset-button" class="secondary">Reset</button>
         </div>
 
-        <p id="message">Press Start Test when you're ready.</p>
+        <p id="message">Choose a duration and press Start Test.</p>
 
         <div id="results" class="results" hidden>
             <h2>Test Complete!</h2>
@@ -69,94 +126,187 @@
     </div>
 
     <script>
-        const passages = [
-            "Learning to type quickly takes practice and patience. Focus on accuracy first, then gradually increase your speed. With regular practice, your typing skills will improve over time.",
-            "Technology helps people communicate, learn, and work more efficiently. Developing good typing habits can save time every day and make using a computer easier and more enjoyable.",
-            "Every great skill starts with small steps. Set a goal, practise consistently, and learn from your mistakes. Progress might be slow at first, but persistence makes a difference."
-        ];
+        const wordBank = (
+            "apple orange banana grape lemon melon peach pear cherry berry " +
+            "house window door table chair floor wall room garden street " +
+            "water river ocean lake mountain forest tree grass flower cloud " +
+            "sun moon star sky earth stone sand wind rain snow fire light " +
+            "computer keyboard screen mouse phone cable button website " +
+            "program code game player level score point skill practice " +
+            "school lesson student teacher book paper pencil answer question " +
+            "number letter word name place time day night morning evening " +
+            "happy quiet quick slow bright dark strong small large great " +
+            "green blue red yellow black white purple silver golden " +
+            "run walk jump move turn climb swim drive travel explore " +
+            "think learn build create write read speak listen watch " +
+            "music sound voice rhythm beat song story dream idea plan " +
+            "money price value market business profit growth future " +
+            "energy power speed focus effort progress result success " +
+            "family friend people person child world country city village " +
+            "bread cheese milk butter rice pasta pizza soup apple juice " +
+            "football tennis running cycling swimming fitness health " +
+            "science maths physics history language english memory logic " +
+            "open close start stop begin finish change choose follow " +
+            "random simple easy hard clear clean fresh cool warm cold " +
+            "fast smart clever calm brave kind honest careful ready " +
+            "forest desert island beach field path bridge tower castle " +
+            "train plane bus bicycle engine wheel road journey distance " +
+            "robot machine system network data signal digital online " +
+            "future present moment second minute hour week month year " +
+            "early late today tomorrow yesterday always never often " +
+            "above below under between around across forward backward " +
+            "greenhouse notebook backpack pocket jacket shoe shirt " +
+            "coffee tea breakfast lunch dinner kitchen plate spoon " +
+            "window mirror picture camera photo video image color shape " +
+            "circle square triangle line curve angle pattern design " +
+            "metal plastic wood glass paper cotton wool leather " +
+            "winter summer autumn spring season weather temperature " +
+            "rabbit tiger horse sheep cow goat bird eagle fish whale " +
+            "insect spider butterfly animal nature planet galaxy space " +
+            "rocket satellite astronaut science discovery experiment " +
+            "correct mistake error attempt challenge target record " +
+            "typing accuracy speed words letters hands fingers " +
+            "focus attention control reaction timing habit improvement"
+        ).split(/\s+/);
 
         const display = document.getElementById("text-display");
         const input = document.getElementById("typing-input");
         const timeDisplay = document.getElementById("time");
         const wpmDisplay = document.getElementById("wpm");
         const accuracyDisplay = document.getElementById("accuracy");
+        const durationSelect = document.getElementById("duration");
         const message = document.getElementById("message");
         const results = document.getElementById("results");
 
-        let passage = "";
+        let duration = 60;
         let timeLeft = 60;
         let timer = null;
         let started = false;
-        let testStartTime = 0;
+        let startTime = 0;
+        let words = [];
+        let typedCharacters = 0;
+        let correctCharacters = 0;
 
-        function showPassage() {
-            display.innerHTML = "";
+        function randomWord() {
+            return wordBank[Math.floor(Math.random() * wordBank.length)];
+        }
 
-            passage.split("").forEach(char => {
+        function addWords(count = 100) {
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i < count; i++) {
                 const span = document.createElement("span");
-                span.textContent = char;
-                display.appendChild(span);
-            });
+                span.textContent = randomWord();
+                words.push(span);
+                fragment.appendChild(span);
+            }
+
+            display.appendChild(fragment);
+        }
+
+        function generateInitialWords() {
+            display.innerHTML = "";
+            words = [];
+            addWords(100);
         }
 
         function updateStats() {
             if (!started) return;
 
             const typed = input.value;
-            const spans = display.querySelectorAll("span");
+            const elapsedMinutes = Math.max(
+                (Date.now() - startTime) / 60000,
+                1 / 60000
+            );
+
             let correct = 0;
 
-            spans.forEach((span, index) => {
-                if (index < typed.length) {
-                    if (typed[index] === passage[index]) {
-                        span.className = "correct";
-                        correct++;
-                    } else {
-                        span.className = "incorrect";
-                    }
-                } else {
-                    span.className = "";
-                }
+            words.forEach(span => {
+                span.classList.remove("current", "correct", "incorrect");
             });
 
-            const elapsed = Math.max((Date.now() - testStartTime) / 60000, 1 / 60);
-            const wpm = Math.round((correct / 5) / elapsed);
+            const expected = words.map(span => span.textContent).join(" ");
+            const typedWords = typed.split(" ");
+
+            // Add more words before the user reaches the end.
+            if (typed.length > expected.length - 200) {
+                addWords(100);
+            }
+
+            const updatedExpected = words.map(span => span.textContent).join(" ");
+
+            for (let i = 0; i < typed.length; i++) {
+                if (typed[i] === updatedExpected[i]) {
+                    correct++;
+                }
+            }
+
+            typedCharacters = typed.length;
+            correctCharacters = correct;
+
+            const wpm = Math.round((correct / 5) / elapsedMinutes);
             const accuracy = typed.length
-                ? Math.round(correct / typed.length * 100)
+                ? Math.round((correct / typed.length) * 100)
                 : 100;
 
             wpmDisplay.textContent = wpm;
             accuracyDisplay.textContent = accuracy + "%";
 
-            if (typed.length >= passage.length) {
-                finishTest();
+            const typedWordCount = typedWords.length;
+            const spans = words;
+
+            let characterPosition = 0;
+
+            for (let i = 0; i < spans.length; i++) {
+                const span = spans[i];
+                const word = span.textContent;
+                const wordStart = characterPosition;
+                const wordEnd = wordStart + word.length;
+
+                for (let j = wordStart; j < wordEnd; j++) {
+                    if (j < typed.length) {
+                        if (typed[j] === updatedExpected[j]) {
+                            span.classList.add("correct");
+                        } else {
+                            span.classList.add("incorrect");
+                        }
+                        break;
+                    }
+                }
+
+                if (typed.length >= wordStart && typed.length <= wordEnd) {
+                    span.classList.add("current");
+                    span.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                }
+
+                characterPosition = wordEnd + 1;
             }
         }
 
         function startTest() {
             clearInterval(timer);
 
-            passage = passages[Math.floor(Math.random() * passages.length)];
-            timeLeft = 60;
+            duration = Number(durationSelect.value);
+            timeLeft = duration;
+            startTime = Date.now();
             started = true;
-            testStartTime = Date.now();
 
-            timeDisplay.textContent = "60";
+            timeDisplay.textContent = timeLeft;
             wpmDisplay.textContent = "0";
             accuracyDisplay.textContent = "100%";
             input.value = "";
             input.disabled = false;
-            input.maxLength = passage.length;
             results.hidden = true;
-            message.textContent = "Type the text as accurately as possible.";
+            durationSelect.disabled = true;
+            message.textContent = "Type the random words as quickly and accurately as possible.";
 
-            showPassage();
+            generateInitialWords();
             input.focus();
 
             timer = setInterval(() => {
                 timeLeft = Math.max(
                     0,
-                    60 - Math.floor((Date.now() - testStartTime) / 1000)
+                    duration - Math.floor((Date.now() - startTime) / 1000)
                 );
 
                 timeDisplay.textContent = timeLeft;
@@ -171,29 +321,25 @@
         function finishTest() {
             if (!started) return;
 
+            updateStats();
             started = false;
             clearInterval(timer);
             input.disabled = true;
+            durationSelect.disabled = false;
 
-            const typed = input.value;
-            let correct = 0;
-
-            for (let i = 0; i < typed.length; i++) {
-                if (typed[i] === passage[i]) correct++;
-            }
-
-            const elapsed = Math.max(
-                Math.min((Date.now() - testStartTime) / 60000, 1),
-                1 / 60
+            const elapsedMinutes = Math.max(
+                Math.min((Date.now() - startTime) / 60000, duration / 60),
+                1 / 60000
             );
 
-            document.getElementById("final-wpm").textContent =
-                Math.round((correct / 5) / elapsed);
+            const finalWpm = Math.round((correctCharacters / 5) / elapsedMinutes);
+            const finalAccuracy = typedCharacters
+                ? Math.round(correctCharacters / typedCharacters * 100)
+                : 100;
 
-            document.getElementById("final-accuracy").textContent =
-                (typed.length ? Math.round(correct / typed.length * 100) : 100) + "%";
-
-            document.getElementById("correct-chars").textContent = correct;
+            document.getElementById("final-wpm").textContent = finalWpm;
+            document.getElementById("final-accuracy").textContent = finalAccuracy + "%";
+            document.getElementById("correct-chars").textContent = correctCharacters;
 
             results.hidden = false;
             message.textContent = "Test finished.";
@@ -202,21 +348,26 @@
         function resetTest() {
             clearInterval(timer);
             started = false;
-            timeLeft = 60;
+            duration = Number(durationSelect.value);
+            timeLeft = duration;
 
-            timeDisplay.textContent = "60";
+            timeDisplay.textContent = duration;
             wpmDisplay.textContent = "0";
             accuracyDisplay.textContent = "100%";
 
             input.value = "";
             input.disabled = true;
+            durationSelect.disabled = false;
             display.innerHTML = "";
+            words = [];
             results.hidden = true;
 
-            message.textContent = "Press Start Test when you're ready.";
+            message.textContent = "Choose a duration and press Start Test.";
         }
 
+        durationSelect.addEventListener("change", resetTest);
         input.addEventListener("input", updateStats);
+
         document.getElementById("start-button").addEventListener("click", startTest);
         document.getElementById("reset-button").addEventListener("click", resetTest);
         document.getElementById("try-again-button").addEventListener("click", startTest);
