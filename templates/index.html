@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Speed Test</title>
+    <meta name="description" content="Test your typing speed online. Measure your words per minute (WPM), accuracy, and improve your typing skills for free.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Typing Speed Test</h1>
+        <p class="subtitle">Test your speed. Improve your accuracy.</p>
+
+        <div class="stats">
+            <div class="stat">
+                <span id="time">60</span>
+                <small>Seconds</small>
+            </div>
+            <div class="stat">
+                <span id="wpm">0</span>
+                <small>WPM</small>
+            </div>
+            <div class="stat">
+                <span id="accuracy">100%</span>
+                <small>Accuracy</small>
+            </div>
+        </div>
+
+        <div id="text-display" class="text-display"></div>
+
+        <textarea
+            id="typing-input"
+            placeholder="Start typing the text above..."
+            spellcheck="false"
+            autocomplete="off"
+            autocapitalize="off"
+            disabled
+        ></textarea>
+
+        <div class="buttons">
+            <button id="start-button">Start Test</button>
+            <button id="reset-button" class="secondary">Reset</button>
+        </div>
+
+        <p id="message">Press Start Test when you're ready.</p>
+
+        <div id="results" class="results" hidden>
+            <h2>Test Complete!</h2>
+            <p>Typing speed: <strong id="final-wpm">0</strong> WPM</p>
+            <p>Accuracy: <strong id="final-accuracy">100%</strong></p>
+            <p>Correct characters: <strong id="correct-chars">0</strong></p>
+            <button id="try-again-button">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        const passages = [
+            "Learning to type quickly takes practice and patience. Focus on accuracy first, then gradually increase your speed. With regular practice, your typing skills will improve over time.",
+            "Technology helps people communicate, learn, and work more efficiently. Developing good typing habits can save time every day and make using a computer easier and more enjoyable.",
+            "Every great skill starts with small steps. Set a goal, practise consistently, and learn from your mistakes. Progress might be slow at first, but persistence makes a difference."
+        ];
+
+        const display = document.getElementById("text-display");
+        const input = document.getElementById("typing-input");
+        const timeDisplay = document.getElementById("time");
+        const wpmDisplay = document.getElementById("wpm");
+        const accuracyDisplay = document.getElementById("accuracy");
+        const message = document.getElementById("message");
+        const results = document.getElementById("results");
+
+        let passage = "";
+        let timeLeft = 60;
+        let timer = null;
+        let started = false;
+
+        function choosePassage() {
+            return passages[Math.floor(Math.random() * passages.length)];
+        }
+
+        function showPassage() {
+            display.innerHTML = "";
+            passage.split("").forEach(char => {
+                const span = document.createElement("span");
+                span.textContent = char;
+                display.appendChild(span);
+            });
+        }
+
+        function updateStats() {
+            const typed = input.value;
+            const spans = display.querySelectorAll("span");
+            let correct = 0;
+
+            spans.forEach((span, index) => {
+                if (index < typed.length) {
+                    if (typed[index] === passage[index]) {
+                        span.className = "correct";
+                        correct++;
+                    } else {
+                        span.className = "incorrect";
+                    }
+                } else {
+                    span.className = "";
+                }
+            });
+
+            const elapsed = 60 - timeLeft;
+            const minutes = Math.max(elapsed / 60, 1 / 60);
+            const wpm = Math.round((correct / 5) / minutes);
+            const accuracy = typed.length
+                ? Math.round((correct / typed.length) * 100)
+                : 100;
+
+            wpmDisplay.textContent = wpm;
+            accuracyDisplay.textContent = accuracy + "%";
+
+            if (typed.length >= passage.length) {
+                finishTest();
+            }
+        }
+
+        function startTest() {
+            clearInterval(timer);
+
+            passage = choosePassage();
+            timeLeft = 60;
+            started = false;
+
+            timeDisplay.textContent = timeLeft;
+            wpmDisplay.textContent = "0";
+            accuracyDisplay.textContent = "100%";
+            input.value = "";
+            input.disabled = false;
+            input.maxLength = passage.length;
+            results.hidden = true;
+            message.textContent = "Type the text as accurately as possible.";
+
+            showPassage();
+            input.focus();
+
+            started = true;
+            timer = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+                updateStats();
+
+                if (timeLeft <= 0) {
+                    finishTest();
+                }
+            }, 1000);
+        }
+
+        function finishTest() {
+            if (!started) return;
+
+            started = false;
+            clearInterval(timer);
+            input.disabled = true;
+
+            const typed = input.value;
+            let correct = 0;
+
+            for (let i = 0; i < typed.length; i++) {
+                if (typed[i] === passage[i]) correct++;
+            }
+
+            const elapsed = Math.max((60 - timeLeft) / 60, 1 / 60);
+            const finalWpm = Math.round((correct / 5) / elapsed);
+            const finalAccuracy = typed.length
+                ? Math.round((correct / typed.length) * 100)
+                : 100;
+
+            document.getElementById("final-wpm").textContent = finalWpm;
+            document.getElementById("final-accuracy").textContent =
+                finalAccuracy + "%";
+            document.getElementById("correct-chars").textContent = correct;
+
+            results.hidden = false;
+            message.textContent = "Test finished.";
+        }
+
+        function resetTest() {
+            clearInterval(timer);
+            started = false;
+            timeLeft = 60;
+            timeDisplay.textContent = "60";
+            wpmDisplay.textContent = "0";
+            accuracyDisplay.textContent = "100%";
+            input.value = "";
+            input.disabled = true;
+            display.innerHTML = "";
+            results.hidden = true;
+            message.textContent = "Press Start Test when you're ready.";
+        }
+
+        input.addEventListener("input", updateStats);
+        document.getElementById("start-button").addEventListener("click", startTest);
+        document.getElementById("reset-button").addEventListener("click", resetTest);
+        document.getElementById("try-again-button").addEventListener("click", startTest);
+
+        resetTest();
+    </script>
+</body>
+</html>
